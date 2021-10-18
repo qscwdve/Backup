@@ -1,6 +1,8 @@
 package com.example.backup
 
 import android.util.Base64
+import java.lang.Exception
+import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -12,7 +14,7 @@ class AESService {
     )
 
     fun encByKey(key: String, plainText: String): String {
-        val secretKey = SecretKeySpec(key.toByteArray(), "AES")
+        val secretKey = SecretKeySpec(createHashKey(key).toByteArray(), "AES")
 
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, IvParameterSpec(iv))
@@ -22,12 +24,22 @@ class AESService {
     }
 
     fun decByKey(key: String, cryptogram: String): String{
-        val secretKey = SecretKeySpec(key.toByteArray(), "AES")
+        val secretKey = SecretKeySpec(createHashKey(key).toByteArray(), "AES")
 
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
         cipher.init(Cipher.DECRYPT_MODE, secretKey, IvParameterSpec(iv))
 
         val desText = cipher.doFinal(Base64.decode(cryptogram, 0))
         return String(desText)
+    }
+
+    private fun createHashKey(key: String) : String {
+        try {
+            val md = MessageDigest.getInstance("SHA-256")
+            md.update(key.toByte())
+
+            return md.digest().toString().substring(0..15)
+        } catch (e : Exception){ }
+        return "secretKey1234567"
     }
 }
