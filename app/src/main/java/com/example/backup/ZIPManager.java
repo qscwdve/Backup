@@ -1,5 +1,6 @@
 package com.example.backup;
 
+import android.app.Activity;
 import android.util.Log;
 
 import java.io.BufferedInputStream;
@@ -17,7 +18,7 @@ public class ZIPManager {
     private static final int BUFFER = 800000;
     private static final int BUFFER_SIZE = 1024 * 2;
     private static final int COMPRESSION_LEVEL = 8;
-
+    private static int ZIPFLAG = 0;
 
     /**
      * 파일 압축
@@ -25,7 +26,9 @@ public class ZIPManager {
      * @param zipFileName : 저장될 경로의 파일 이름
      */
 
-    public void zip(String[] _files, String zipFileName) {
+    public void zip(String[] _files, String zipFileName, ProgressDialog dialog, MainActivity mainActivity) {
+        // zip 시작 플래그
+        ZIPFLAG = 1;
         try {
             BufferedInputStream origin = null;
             FileOutputStream dest = new FileOutputStream(zipFileName);
@@ -33,8 +36,12 @@ public class ZIPManager {
                     dest));
             byte[] data = new byte[BUFFER];
 
+            // 진행사항 표시하기
+            int totalNum = _files.length;
+            int nowNum = 1;
+
             for (String file : _files) {
-                Log.v("Compress", "Adding: " + file);
+                //Log.v("Compress", "Adding: " + file);
                 FileInputStream fi = new FileInputStream(file);
                 origin = new BufferedInputStream(fi, BUFFER);
 
@@ -46,12 +53,33 @@ public class ZIPManager {
                     out.write(data, 0, count);
                 }
                 origin.close();
+
+                // 진행사항 표시
+                nowNum++;
+                mainActivity.applyBackupProgress(dialog, 100 * (nowNum/totalNum));
+                //Log.d("progress", "total : " + totalNum + " , now : " + nowNum);
+
+                // 사용자가 도중에 취소할 경우
+                if(ZIPFLAG == 0){
+                    out.close();
+                    // ZIP 파일 제거
+                    mainActivity.innerDeleteFile(zipFileName);
+                    break;
+                }
             }
 
             out.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        // 사용자가 도중에 백업과정을 취소하지 않았을 경우
+        if(ZIPFLAG == 1){
+            mainActivity.startBackUpFileSendMail();
+            ZIPFLAG = 0;
+        }
+        // 진행바 종료
+        dialog.dismiss();
     }
 
     public void unzip(String _zipFile, String _targetLocation) {
@@ -168,4 +196,7 @@ public class ZIPManager {
         }
     }
 
+    void stopProgress(){
+        ZIPFLAG = 0;
+    }
 }

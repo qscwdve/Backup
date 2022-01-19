@@ -4,33 +4,61 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="10dp"
     tools:context=".MainActivity">
 
-    <Button
+    <LinearLayout
+        android:id="@+id/main_title"
+        android:padding="10dp"
         android:layout_alignParentTop="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:text="파일 백업 테스트"/>
+    </LinearLayout>
+
+    <Button
+        android:layout_below="@+id/main_title"
         android:layout_alignParentStart="true"
         android:id="@+id/main_file_find_btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="파일 탐색기"/>
+        android:text="백업 파일 불러오기"/>
     <Button
+        android:layout_below="@+id/main_title"
         android:layout_alignParentEnd="true"
-        android:layout_alignParentTop="true"
         android:id="@+id/main_send_email_btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="이메일로 보내기"/>
-    <EditText
-        android:padding="10dp"
-        android:hint="내용 없음"
-        android:textSize="16sp"
-        android:textColor="@color/black"
-        android:gravity="center_horizontal"
-        android:background="@drawable/rectangle_box"
-        android:id="@+id/main_content"
-        android:layout_margin="15dp"
-        android:layout_below="@+id/main_file_find_btn"
+        android:text="백업 파일 보내기"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:layout_below="@+id/main_send_email_btn"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/main_file_add"
+        android:id="@+id/main_file_list"/>
+
+    <Button
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:id="@+id/main_file_add"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="파일 추가"/>
+
+    <Button
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:id="@+id/main_file_delete"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="파일 전체 삭제"/>
+
 </RelativeLayout>

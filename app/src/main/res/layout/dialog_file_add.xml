@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:paddingVertical="10dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_marginHorizontal="20dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="17sp"
+            android:text="제목"
+            android:textColor="@color/black"
+            android:textStyle="bold"/>
+        <View
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/black"/>
+
+        <EditText
+            android:id="@+id/dialog_file_add_title"
+            android:layout_marginHorizontal="20dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:hint="제목을 입력하세요."
+            android:textColor="@color/black"
+            android:inputType="text"
+            android:maxLines="1"
+            android:textColorHint="@color/gray"/>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1sp"
+        android:background="@color/black"/>
+    <EditText
+        android:id="@+id/dialog_file_add_content"
+        android:layout_margin="20dp"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:background="@null"
+        android:gravity="top"
+        android:hint="내용을 입력하세요."
+        android:textColor="@color/black"
+        android:inputType="text"
+        android:textColorHint="@color/gray"/>
+
+    <TextView
+        android:id="@+id/dialog_file_add_insert"
+        android:gravity="center"
+        android:padding="10dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="파일 추가하기"
+        android:textSize="15sp"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:background="#00AFFE"/>
+</LinearLayout>

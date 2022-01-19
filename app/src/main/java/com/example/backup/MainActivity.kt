@@ -7,25 +7,24 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.FileProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.backup.databinding.ActivityMainBinding
 import java.io.*
-import java.lang.Exception
 
 class MainActivity : AppCompatActivity() {
+    lateinit var binding : ActivityMainBinding
     lateinit var fileFindActivity : ActivityResultLauncher<Intent>
     lateinit var sendEmailActivity : ActivityResultLauncher<Intent>
-    private val backupFileName = "backup.txt"
+    private val backupFileName = "backup.zip"
+    private val EncFileName = "backup.txt"
     private val key = "secretKey"
     companion object {
         const val REQUEST_ALL_PERMISSION = 1
@@ -37,30 +36,88 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SdCardPath")
     @RequiresApi(Build.VERSION_CODES.M)
     override fun onCreate(savedInstanceState: Bundle?) {
+        binding = ActivityMainBinding.inflate(layoutInflater)
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(binding.root)
 
         setResultFindFile()
         setResultSendMail()
 
+        // 파일 리스트
+        binding.mainFileList.adapter = FileListAdapter(FileControl(this).getFileList(), this)
+        binding.mainFileList.layoutManager = LinearLayoutManager(this)
+
+        // 파일 추가
+        binding.mainFileAdd.setOnClickListener {
+            val fileAddDialog = FileAddDialog(this)
+            fileAddDialog.show(supportFragmentManager, "add")
+        }
+
+        // 파일 삭제
+        binding.mainFileDelete.setOnClickListener {
+            FileControl(this).deleteTotalFile()
+            (binding.mainFileList.adapter as FileListAdapter?)?.deleteTotalItem()
+        }
+
         // 파일 탐색기
-        findViewById<Button>(R.id.main_file_find_btn).setOnClickListener {
+        binding.mainFileFindBtn.setOnClickListener {
             findFile()
         }
         // 이메일 보내기
-        findViewById<Button>(R.id.main_send_email_btn).setOnClickListener {
-            val content = findViewById<EditText>(R.id.main_content).text.toString()
-            if(content != ""){
-                sendMail(content)
-            }
+        binding.mainSendEmailBtn.setOnClickListener {
+            // 다이얼로그 띄우기
+            val progressDialog = ProgressDialog(this)
+            progressDialog.show(supportFragmentManager, "progress")
+
+            //sendMail(content)
         }
+
         // 압축파일 만들기
         // 권한 확인 -> API 23 이상 가능
         if (!hasPermissions(this, PERMISSIONS)) {
             requestPermissions(PERMISSIONS, REQUEST_ALL_PERMISSION)
         }
+
         //zipTest()
-        ZIPManager().unzip("/data/data/com.example.backup/files/zipTest/ziptest.zip", "/data/data/com.example.backup/files/")
+        //ZIPManager().unzip("/data/data/com.example.backup/files/zipTest/ziptest.zip", "/data/data/com.example.backup/files/")
+    }
+
+    // 내부파일 삭제하기
+    fun innerDeleteFile(fileName: String){
+        FileControl(this).deleteFile(fileName)
+    }
+
+    // 백업파일을 만든 뒤 메일로 보내기
+    fun startBackUpFileSendMail(){
+        sendMail()
+    }
+
+    // 백업 파일 만들기 진행사항 프로그래스바에 표시하기
+    fun applyBackupProgress(progressDialog: ProgressDialog, num: Int){
+        progressDialog.setProgressBarGaze(num)
+    }
+
+    // 백업 파일 만들기 시작하기
+    @SuppressLint("SdCardPath")
+    fun startBackUpFile(progressDialog: ProgressDialog){
+        // 압축파일 만들기
+        val basePath = "/data/data/com.example.backup/files/"
+        val files = this.fileList()
+        for(index in files.indices){
+            files[index] = basePath + files[index]
+        }
+        ZIPManager().zip(files, basePath + backupFileName, progressDialog, this)
+
+    }
+
+    fun fileAdd(file: FileFormat){
+        FileControl(this).addFile(file)
+        (binding.mainFileList.adapter as FileListAdapter?)?.addItem(file)
+    }
+
+    fun showFileInfoDialog(file: FileFormat){
+        val fileInfoDialog = FileInfoDialog(file)
+        fileInfoDialog.show(supportFragmentManager, "info")
     }
 
     private fun hasPermissions(context: Context?, permissions: Array<String>): Boolean {
@@ -85,7 +142,7 @@ class MainActivity : AppCompatActivity() {
         val file: String = "file1"
         val file2: String = "file2"
 
-        Log.d("fileZiP", "path : $mOutputDir")
+        //Log.d("fileZiP", "path : $mOutputDir")
         val data: String = "이것은 테스트입니다. 압축파일 테스트!"
         val data2 = "Hello, This is a test!! \n test is good!"
         var fileOutputStream: FileOutputStream
@@ -123,7 +180,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         //파일 압축
-        zipManager.zip(s, "$mOutputDir/zipTest/ziptest.zip")
+        //zipManager.zip(s, "$mOutputDir/zipTest/ziptest.zip", this)
         //폴더 압축
         //zipManager.zipFolder(mOutputDir,"$mOutputDir/zipTest/ziptest.zip")
     }
@@ -162,7 +219,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     // 파일 탐색기를 통해 불러온 파일 결과
+    @SuppressLint("SdCardPath")
     private fun setResultFindFile(){
+        val basePath = "/data/data/com.example.backup/files/"
         fileFindActivity =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if(result.resultCode == RESULT_OK){
@@ -172,8 +231,10 @@ class MainActivity : AppCompatActivity() {
                         val content = readTextFile(fileUri)
                         // 파일 복호화
                         val desContent = AESService().decByKey(key, content)
-                        // 파일 내용 뷰에 적용
-                        findViewById<EditText>(R.id.main_content).setText(desContent)
+                        // 내부 파일로 저장
+                        FileControl(this).addFile(FileFormat(backupFileName, desContent))
+                        // unZip
+                        ZIPManager().unzip(basePath + backupFileName, basePath)
                     }
                 }
             }
@@ -208,27 +269,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     // 이메일 보내기
-    private fun sendMail(fileContent: String){
+    private fun sendMail(){
+        // 파일 내용 불러오기
+        val fileContent = FileControl(this).getFileContent(backupFileName)
+        // 백업 파일 삭제
+        FileControl(this).deleteFile(backupFileName)
         try {
             // 내용 암호화
             val encFileContent = AESService().encByKey(key, fileContent)
             // 임시 파일 만들기
-            val fileOutputStream: FileOutputStream  = openFileOutput(backupFileName, Context.MODE_PRIVATE)
+            val fileOutputStream: FileOutputStream  = openFileOutput(EncFileName, Context.MODE_PRIVATE)
             fileOutputStream.write(encFileContent.toByteArray())
             fileOutputStream.close()
 
-            val sendFilePath = filesDir.canonicalPath + "/" + backupFileName
+            val sendFilePath = filesDir.canonicalPath + "/" + EncFileName
             val file = File(sendFilePath)
 
             val sendUri = FileProvider.getUriForFile(this, "com.example.backup.provider", file)
             /* 첨부파일 이메일 보내기 */
+            val mail_intent = Intent(Intent.ACTION_SEND)
+            mail_intent.type = "*/*"
+            mail_intent.putExtra(Intent.EXTRA_SUBJECT, "백업파일") // 메일 제목
+            mail_intent.putExtra(Intent.EXTRA_TEXT, "백업파일이 첨부파일로 전송됩니다.") // 메일 내용
+            mail_intent.putExtra(Intent.EXTRA_STREAM, sendUri)
+
             val intent = Intent(Intent.ACTION_SEND).apply {
                 flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
                 type = "plain/text"
                 putExtra(Intent.EXTRA_SUBJECT, "Dream Tree Back file Test")
                 putExtra(Intent.EXTRA_STREAM, sendUri)
             }
-            sendEmailActivity.launch(intent)
+            sendEmailActivity.launch(mail_intent)
         } catch (e: FileNotFoundException) {
             e.printStackTrace()
         } catch (e: NumberFormatException) {
