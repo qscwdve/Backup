@@ -8,6 +8,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.zip.ZipEntry;
@@ -26,9 +27,11 @@ public class ZIPManager {
      * @param zipFileName : 저장될 경로의 파일 이름
      */
 
-    public void zip(String[] _files, String zipFileName, ProgressDialog dialog, MainActivity mainActivity) {
+    public void zip(String fileName, String basePath, String[] _files, String zipFileName, ProgressDialog dialog, MainActivity mainActivity) {
+        AESService aesService = new AESService();
         // zip 시작 플래그
         ZIPFLAG = 1;
+
         try {
             BufferedInputStream origin = null;
             FileOutputStream dest = new FileOutputStream(zipFileName);
@@ -41,11 +44,14 @@ public class ZIPManager {
             int nowNum = 1;
 
             for (String file : _files) {
-                //Log.v("Compress", "Adding: " + file);
-                FileInputStream fi = new FileInputStream(file);
+                String absoluteFile = basePath + file;
+                // 파일 암호화하기
+                aesService.encFile(mainActivity, file);
+
+                FileInputStream fi = new FileInputStream(absoluteFile);
                 origin = new BufferedInputStream(fi, BUFFER);
 
-                ZipEntry entry = new ZipEntry(file.substring(file.lastIndexOf("/") + 1));
+                ZipEntry entry = new ZipEntry(absoluteFile.substring(absoluteFile.lastIndexOf("/") + 1));
                 out.putNextEntry(entry);
                 int count;
 
@@ -54,18 +60,20 @@ public class ZIPManager {
                 }
                 origin.close();
 
-                // 진행사항 표시
-                nowNum++;
-                mainActivity.applyBackupProgress(dialog, 100 * (nowNum/totalNum));
-                //Log.d("progress", "total : " + totalNum + " , now : " + nowNum);
-
                 // 사용자가 도중에 취소할 경우
                 if(ZIPFLAG == 0){
                     out.close();
                     // ZIP 파일 제거
                     mainActivity.innerDeleteFile(zipFileName);
+                    aesService.decFile(mainActivity, file);
                     break;
                 }
+                aesService.decFile(mainActivity, file);
+
+                // 진행사항 표시
+                nowNum++;
+                mainActivity.applyBackupProgress(dialog, 100 * (nowNum/totalNum));
+                //Log.d("progress", "total : " + totalNum + " , now : " + nowNum);
             }
 
             out.close();
@@ -75,24 +83,34 @@ public class ZIPManager {
 
         // 사용자가 도중에 백업과정을 취소하지 않았을 경우
         if(ZIPFLAG == 1){
-            mainActivity.startBackUpFileSendMail();
+            mainActivity.startBackUpFileSendMail(fileName);
             ZIPFLAG = 0;
         }
         // 진행바 종료
         dialog.dismiss();
     }
 
-    public void unzip(String _zipFile, String _targetLocation) {
-
+    public void unzip(String _zipFile, String _targetLocation, ProgressDialog dialog, MainActivity mainActivity) {
+        AESService aesService = new AESService();
         //create target location folder if not exist
         dirChecker(_targetLocation);
-
+        // zip 시작 플래그
+        ZIPFLAG = 1;
         try {
             FileInputStream fin = new FileInputStream(_zipFile);
+            FileInputStream countFin = new FileInputStream(_zipFile);
             ZipInputStream zin = new ZipInputStream(fin);
+            ZipInputStream countZin = new ZipInputStream(countFin);
             ZipEntry ze = null;
-            while ((ze = zin.getNextEntry()) != null) {
 
+            // 진행사항 표시하기
+            int totalNum = 0;
+            while((ze = countZin.getNextEntry()) != null) totalNum++;
+            int nowNum = 1;
+            //Log.d("fileName", "totalNum : " + fin.available());
+
+            while ((ze = zin.getNextEntry()) != null) {
+                //Log.d("fileName", "ze : YES!!");
                 //create dir if required while unzipping
                 if (ze.isDirectory()) {
                     dirChecker(ze.getName());
@@ -104,13 +122,30 @@ public class ZIPManager {
 
                     zin.closeEntry();
                     fout.close();
-                }
+                    // 복호화작업
+                    aesService.decFile(mainActivity, ze.getName());
 
+                    // 사용자가 도중에 취소할 경우
+                    if(ZIPFLAG == 0){
+                        break;
+                    }
+                    // 진행사항 표시
+                    nowNum++;
+                    mainActivity.applyBackupProgress(dialog, 100 * (nowNum/totalNum));
+                }
             }
             zin.close();
         } catch (Exception e) {
             System.out.println(e);
         }
+
+        // 사용자가 도중에 백업과정을 취소하지 않았을 경우
+        if(ZIPFLAG == 1){
+            ZIPFLAG = 0;
+        }
+
+        // 진행바 종료
+        dialog.dismiss();
     }
 
 
@@ -155,7 +190,7 @@ public class ZIPManager {
 
             try {
                 String sFilePath = sourceFile.getPath();
-                Log.i("aa", sFilePath);
+                //Log.i("aa", sFilePath);
                 //String zipEntryName = sFilePath.substring(sourcePath.length() + 1, sFilePath.length());
                 StringTokenizer tok = new StringTokenizer(sFilePath,"/");
 

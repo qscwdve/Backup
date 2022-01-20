@@ -7,7 +7,7 @@ import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class FileListAdapter(val fileList: ArrayList<FileFormat>, val mainActivity: MainActivity) : RecyclerView.Adapter<FileListAdapter.FileListViewHolder>(){
+class FileListAdapter(var fileList: ArrayList<FileFormat>, val mainActivity: MainActivity) : RecyclerView.Adapter<FileListAdapter.FileListViewHolder>(){
     class FileListViewHolder(itemView: View, val mainActivity: MainActivity) : RecyclerView.ViewHolder(itemView) {
         val parent = itemView.findViewById<RelativeLayout>(R.id.item_file_parent)
         val title = itemView.findViewById<TextView>(R.id.item_file_title)
@@ -45,6 +45,11 @@ class FileListAdapter(val fileList: ArrayList<FileFormat>, val mainActivity: Mai
 
     fun deleteTotalItem(){
         fileList.clear()
+        notifyDataSetChanged()
+    }
+
+    fun setItemList(newFileList: ArrayList<FileFormat>){
+        fileList = newFileList
         notifyDataSetChanged()
     }
 }

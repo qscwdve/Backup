@@ -1,5 +1,6 @@
 package com.example.backup
 
+import android.app.Activity
 import android.util.Base64
 import java.lang.Exception
 import java.security.MessageDigest
@@ -8,6 +9,7 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 class AESService {
+    private val key = "secretKey"
     private var iv = byteArrayOf(
         0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
         0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16
@@ -41,5 +43,23 @@ class AESService {
             return md.digest().toString().substring(0..15)
         } catch (e : Exception){ }
         return "secretKey1234567"
+    }
+
+    fun encFile(context: Activity, fileName: String){
+        // 파일 내용 가져오기
+        val fileData = FileControl(context).getFileContent(fileName)
+        // 파일 암호화하기
+        val endFileData = encByKey(key, fileData)
+        // 파일 암호화한 내용으로 덮어쓰기
+        FileControl(context).addFile(FileFormat(fileName, endFileData))
+    }
+
+    fun decFile(context: Activity, fileName: String){
+        // 파일 내용 가져오기
+        val encFileData = FileControl(context).getFileContent(fileName)
+        // 파일 복호화하기
+        val fileData = decByKey(key, encFileData)
+        // 복호화한 파일 내용 덮어쓰기
+        FileControl(context).addFile(FileFormat(fileName, fileData))
     }
 }
